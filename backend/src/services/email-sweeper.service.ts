@@ -22,7 +22,7 @@ export async function sweepOrphanedEmailJobs(
   const candidates = await prisma.emailJob.findMany({
     where: {
       status: {
-        in: ["scheduled", "queued"]
+        in: ["scheduled", "queued", "processing"]
       },
       scheduledAt: {
         lte: cutoff
@@ -50,7 +50,7 @@ export async function sweepOrphanedEmailJobs(
       where: {
         id: orphan.id,
         status: {
-          in: ["scheduled", "queued"]
+          in: ["scheduled", "queued", "processing"]
         }
       },
       data: {

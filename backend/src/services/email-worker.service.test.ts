@@ -111,11 +111,44 @@ describe("processEmailJob", () => {
     (prisma.emailJob.updateMany as Mock).mockResolvedValue({ count: 0 });
     (prisma.emailJob.findUnique as Mock)
       .mockResolvedValueOnce(emailJob)
-      .mockResolvedValueOnce({ ...emailJob, status: "processing" });
+      .mockResolvedValueOnce({ ...emailJob, status: "processing", updatedAt: new Date() });
 
     const result = await processEmailJob(job);
 
     expect(result).toEqual({ skipped: true, reason: "already_processing_by_another_worker" });
+  });
+
+  it("reclaims a stale processing job left behind by a crashed worker", async () => {
+    (prisma.emailJob.updateMany as Mock)
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+    (prisma.emailJob.findUnique as Mock)
+      .mockResolvedValueOnce(emailJob)
+      .mockResolvedValueOnce({
+        ...emailJob,
+        status: "processing",
+        updatedAt: new Date(Date.now() - 60 * 1000)
+      });
+    (sendEmail as Mock).mockResolvedValue({
+      messageId: "message-reclaimed",
+      accepted: ["r@example.com"],
+      rejected: [],
+      response: "250 OK",
+      previewUrl: "https://ethereal.email/message/preview"
+    });
+
+    const result = await processEmailJob(job);
+
+    expect(prisma.emailJob.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "job-1",
+          status: "processing",
+          updatedAt: { lt: expect.any(Date) }
+        })
+      })
+    );
+    expect(result).toMatchObject({ sent: true, messageId: "message-reclaimed" });
   });
 
   it("skips when the job was already sent after transition", async () => {

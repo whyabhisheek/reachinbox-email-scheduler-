@@ -1,4 +1,5 @@
 import type { Job } from "bullmq";
+import { env } from "../config/env.js";
 import { prisma } from "../config/prisma.js";
 import { addDelayedEmailJob, type EmailQueueJobData } from "../queues/email.queue.js";
 import { reserveEmailSendSlot } from "./rate-limit.service.js";
@@ -67,13 +68,31 @@ export async function processEmailJob(job: Job<EmailQueueJobData>) {
       }
 
       if (latest?.status === "processing") {
-        return {
-          skipped: true,
-          reason: "already_processing_by_another_worker"
-        };
-      }
+        const staleBefore = new Date(Date.now() - env.PROCESSING_RECLAIM_GRACE_MS);
+        const reclaim = await prisma.emailJob.updateMany({
+          where: {
+            id: emailJob.id,
+            status: "processing",
+            updatedAt: {
+              lt: staleBefore
+            }
+          },
+          data: {
+            status: "processing",
+            bullmqJobId: String(job.id),
+            error: null
+          }
+        });
 
-      throw new Error(`EmailJob ${emailJob.id} could not transition to processing.`);
+        if (reclaim.count !== 1) {
+          return {
+            skipped: true,
+            reason: "already_processing_by_another_worker"
+          };
+        }
+      } else {
+        throw new Error(`EmailJob ${emailJob.id} could not transition to processing.`);
+      }
     }
 
     const reservation = await reserveEmailSendSlot(emailJob.senderId, {

@@ -223,6 +223,7 @@ EMAIL_SWEEPER_INTERVAL_MS=300000      # sweeper runs every 5 minutes
 EMAIL_JOB_ATTEMPTS=3
 EMAIL_JOB_BACKOFF_MS=5000
 WORKER_CONCURRENCY=5
+PROCESSING_RECLAIM_GRACE_MS=15000   # reclaim stale "processing" rows after a crashed worker
 MIN_DELAY_BETWEEN_EMAILS_MS=2000
 MAX_EMAILS_PER_HOUR_PER_SENDER=100
 
@@ -471,6 +472,7 @@ Idempotency checks before and during processing:
 - If `sentAt` is set or status is `sent` → skip.
 - If the stored `bullmqJobId` differs from the BullMQ job id → throw (mismatch).
 - `updateMany` transitions only if status is `scheduled/queued/failed`; if zero rows changed, the job is skipped as already-sent or already-processing (another worker owns it).
+- A row stuck in `processing` by a crashed worker is **reclaimed** after `PROCESSING_RECLAIM_GRACE_MS` (15 s) when BullMQ re-delivers the stalled job, so restarts never leave emails permanently stuck. The sweeper also marks `processing` rows with no live queue job as failed.
 
 On send failure the error is rethrown so BullMQ's retry/backoff applies; the row records `attempts` and `error`.
 

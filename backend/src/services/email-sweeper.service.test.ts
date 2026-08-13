@@ -37,7 +37,7 @@ describe("sweepOrphanedEmailJobs", () => {
       where: {
         id: "orphan-1",
         status: {
-          in: ["scheduled", "queued"]
+          in: ["scheduled", "queued", "processing"]
         }
       },
       data: {
@@ -85,7 +85,7 @@ describe("sweepOrphanedEmailJobs", () => {
     expect(prisma.emailJob.findMany).toHaveBeenCalledWith({
       where: {
         status: {
-          in: ["scheduled", "queued"]
+          in: ["scheduled", "queued", "processing"]
         },
         scheduledAt: {
           lte: new Date(now.getTime() - 60 * 1000)
@@ -130,5 +130,24 @@ describe("sweepOrphanedEmailJobs", () => {
     const result = await sweepOrphanedEmailJobs({ now });
 
     expect(result).toEqual({ scanned: 1, orphaned: 1, markedFailed: 0 });
+  });
+
+  it("marks a stale processing job whose queue job is gone as failed", async () => {
+    (prisma.emailJob.findMany as Mock).mockResolvedValue([
+      { id: "stuck-1", bullmqJobId: "email-job-lost" }
+    ]);
+    (emailQueue.getJobs as Mock).mockResolvedValue([]);
+
+    const result = await sweepOrphanedEmailJobs({ now });
+
+    expect(prisma.emailJob.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "stuck-1",
+          status: expect.objectContaining({ in: expect.arrayContaining(["processing"]) })
+        })
+      })
+    );
+    expect(result).toEqual({ scanned: 1, orphaned: 1, markedFailed: 1 });
   });
 });

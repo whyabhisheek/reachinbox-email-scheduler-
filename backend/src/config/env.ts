@@ -33,7 +33,8 @@ const envSchema = z.object({
   RUN_EMAIL_WORKER_INLINE: z
     .enum(["true", "false"])
     .default("false")
-    .transform((value) => value === "true")
+    .transform((value) => value === "true"),
+  PROCESSING_RECLAIM_GRACE_MS: z.coerce.number().int().positive().default(15 * 1000)
 });
 
 export const env = envSchema.parse(process.env);
