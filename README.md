@@ -215,6 +215,7 @@ GOOGLE_CALLBACK_URL=http://localhost:4000/api/auth/google/callback
 JWT_SESSION_SECRET=replace-with-a-long-random-secret     # must be ≥ 32 chars
 AUTH_COOKIE_NAME=reachinbox_session
 NODE_ENV=development
+RUN_EMAIL_WORKER_INLINE=false   # set true in production to run the BullMQ worker in the same process
 
 REDIS_URL=redis://localhost:6380
 EMAIL_QUEUE_NAME=email-send-queue

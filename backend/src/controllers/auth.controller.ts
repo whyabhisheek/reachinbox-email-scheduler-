@@ -14,24 +14,28 @@ const cookieMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
 const oauthStateCookieName = "reachinbox_oauth_state";
 const oauthStateMaxAgeMs = 10 * 60 * 1000;
 
+const isProduction = env.NODE_ENV === "production";
+
 const authCookieOptions = {
   httpOnly: true,
-  sameSite: "lax" as const,
-  secure: env.NODE_ENV === "production",
+  sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+  secure: isProduction,
   maxAge: cookieMaxAgeMs,
+  path: "/"
+};
+
+const oauthStateCookieOptions = {
+  httpOnly: true,
+  sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+  secure: isProduction,
+  maxAge: oauthStateMaxAgeMs,
   path: "/"
 };
 
 export function redirectToGoogle(_req: Request, res: Response) {
   const state = createOAuthState();
 
-  res.cookie(oauthStateCookieName, state, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: env.NODE_ENV === "production",
-    maxAge: oauthStateMaxAgeMs,
-    path: "/"
-  });
+  res.cookie(oauthStateCookieName, state, oauthStateCookieOptions);
 
   res.redirect(getGoogleAuthUrl(state));
 }
@@ -41,12 +45,7 @@ export async function handleGoogleCallback(req: Request, res: Response) {
   const state = typeof req.query.state === "string" ? req.query.state : null;
   const storedState = req.cookies?.[oauthStateCookieName] ?? null;
 
-  res.clearCookie(oauthStateCookieName, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: env.NODE_ENV === "production",
-    path: "/"
-  });
+  res.clearCookie(oauthStateCookieName, oauthStateCookieOptions);
 
   if (!code) {
     return res.redirect(`${env.CLIENT_URL}/login?error=missing_google_code`);

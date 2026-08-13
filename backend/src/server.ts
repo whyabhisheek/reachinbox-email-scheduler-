@@ -6,6 +6,10 @@ import { emailQueue } from "./queues/email.queue.js";
 import { emailSweeperQueue } from "./queues/email-sweeper.queue.js";
 import { startEmailSweeper } from "./workers/email-sweeper.worker.js";
 
+if (env.RUN_EMAIL_WORKER_INLINE) {
+  await import("./workers/email.worker.js");
+}
+
 const emailSweeperWorker = startEmailSweeper();
 
 const server = app.listen(env.PORT, () => {

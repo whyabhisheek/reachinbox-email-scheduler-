@@ -29,7 +29,11 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
   SMTP_FROM: z.string().optional(),
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development")
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  RUN_EMAIL_WORKER_INLINE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true")
 });
 
 export const env = envSchema.parse(process.env);
