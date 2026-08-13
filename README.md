@@ -631,5 +631,5 @@ npm run lint --workspace frontend
 
 ## Known Follow-ups
 
-- Rotate the Google OAuth client secret in Google Cloud Console (it was exposed in an earlier chat) and update `backend/.env` — the JWT secret has already been rotated.
+- The Google OAuth client secret and JWT session secret have both been rotated; the current values live only in the git-ignored `backend/.env`.
 - If you run `prisma migrate dev` after a future schema change, re-apply the `email_jobs_dedup_key` index (it is an md5-based unique index created via raw SQL and may be dropped as unmanaged drift).
